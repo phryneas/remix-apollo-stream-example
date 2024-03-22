@@ -11,6 +11,8 @@ import { createReadableStreamFromReadable } from "@remix-run/node";
 import { RemixServer } from "@remix-run/react";
 import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
+import { InjectionContextProvider, createTransport } from "./Transport";
+import { makeClient } from "./makeClient";
 
 const ABORT_DELAY = 5_000;
 
@@ -47,12 +49,15 @@ function handleBotRequest(
 ) {
   return new Promise((resolve, reject) => {
     let shellRendered = false;
+    const { injectIntoStream, transformStream } = createTransport();
     const { pipe, abort } = renderToPipeableStream(
-      <RemixServer
-        context={remixContext}
-        url={request.url}
-        abortDelay={ABORT_DELAY}
-      />,
+      <InjectionContextProvider value={injectIntoStream}>
+        <RemixServer
+          context={remixContext}
+          url={request.url}
+          abortDelay={ABORT_DELAY}
+        />
+      </InjectionContextProvider>,
       {
         onAllReady() {
           shellRendered = true;
@@ -62,7 +67,7 @@ function handleBotRequest(
           responseHeaders.set("Content-Type", "text/html");
 
           resolve(
-            new Response(stream, {
+            new Response(stream.pipeThrough(transformStream), {
               headers: responseHeaders,
               status: responseStatusCode,
             })
@@ -95,14 +100,17 @@ function handleBrowserRequest(
   responseHeaders: Headers,
   remixContext: EntryContext
 ) {
+  const { injectIntoStream, transformStream } = createTransport();
   return new Promise((resolve, reject) => {
     let shellRendered = false;
     const { pipe, abort } = renderToPipeableStream(
-      <RemixServer
-        context={remixContext}
-        url={request.url}
-        abortDelay={ABORT_DELAY}
-      />,
+      <InjectionContextProvider value={injectIntoStream}>
+        <RemixServer
+          context={remixContext}
+          url={request.url}
+          abortDelay={ABORT_DELAY}
+        />
+      </InjectionContextProvider>,
       {
         onShellReady() {
           shellRendered = true;
@@ -112,7 +120,7 @@ function handleBrowserRequest(
           responseHeaders.set("Content-Type", "text/html");
 
           resolve(
-            new Response(stream, {
+            new Response(stream.pipeThrough(transformStream), {
               headers: responseHeaders,
               status: responseStatusCode,
             })

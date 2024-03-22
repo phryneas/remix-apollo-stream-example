@@ -12,7 +12,6 @@ import { RemixServer } from "@remix-run/react";
 import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
 import { InjectionContextProvider, createTransport } from "./Transport";
-import { makeClient } from "./makeClient";
 
 const ABORT_DELAY = 5_000;
 
